@@ -1,4 +1,5 @@
 @localUrl = http://localhost:8080
+@renderUrl = https://medieval-quest-api.onrender.com
 
 ### Get all quests
 GET {{localUrl}}/quests
@@ -13,6 +14,23 @@ Content-Type: application/json
   "difficulty": "easy",
   "location": "Embercrest Forge",
   "reward": "10 gold coins",
+  "minimumLevel": 1,
+  "guildId": null
+}
+
+### Get all quests on Render
+GET {{renderUrl}}/quests
+
+### Create a quest on Render
+POST {{renderUrl}}/quests
+Content-Type: application/json
+
+{
+  "title": "Supplies for the Watchtower",
+  "description": "Deliver supplies to the guards at the northern watchtower.",
+  "difficulty": "easy",
+  "location": "Northern Watchtower",
+  "reward": "15 gold coins",
   "minimumLevel": 1,
   "guildId": null
 }
