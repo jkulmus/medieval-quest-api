@@ -1,0 +1,403 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "Medieval Quest API",
+    "version": "1.0.0",
+    "description": "Manage medieval quests and guilds. Lesson 5 implements GET all quests and POST a quest. GET by ID, PUT, and DELETE are documented as planned operations."
+  },
+  "servers": [
+    {
+      "url": "/",
+      "description": "Server hosting this documentation"
+    }
+  ],
+  "tags": [
+    {
+      "name": "General",
+      "description": "API welcome route."
+    },
+    {
+      "name": "Quests",
+      "description": "Create and retrieve quests."
+    }
+  ],
+  "paths": {
+    "/": {
+      "get": {
+        "tags": [
+          "General"
+        ],
+        "summary": "Get the welcome message",
+        "responses": {
+          "200": {
+            "description": "API welcome message.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "message"
+                  ],
+                  "properties": {
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "example": {
+                  "message": "Welcome to the Medieval Quest API!"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/quests": {
+      "get": {
+        "tags": [
+          "Quests"
+        ],
+        "summary": "Get all quests",
+        "description": "Returns every quest in MongoDB. An empty collection returns [].",
+        "responses": {
+          "200": {
+            "description": "Quests retrieved successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Quest"
+                  }
+                },
+                "example": [
+                  {
+                    "_id": "6acd46de25042f01b90c3644",
+                    "title": "A Message for the Gatekeeper",
+                    "description": "Deliver a sealed message to the kingdom gatekeeper.",
+                    "difficulty": "easy",
+                    "location": "Main Gate",
+                    "reward": "5 gold coins",
+                    "minimumLevel": 1,
+                    "guildId": null
+                  }
+                ]
+              }
+            }
+          },
+          "500": {
+            "description": "Unable to retrieve quests.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "message"
+                  ],
+                  "properties": {
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "example": {
+                  "message": "Unable to retrieve quests."
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Quests"
+        ],
+        "summary": "Create a quest",
+        "description": "Validates the submitted fields, saves a quest in MongoDB, and returns its new ID. Additional fields are ignored.",
+        "requestBody": {
+          "required": true,
+          "description": "Provide all six required fields. Omit guildId or use null until a guild is assigned.",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/QuestInput"
+              },
+              "example": {
+                "title": "A Message for the Gatekeeper",
+                "description": "Deliver a sealed message to the kingdom gatekeeper.",
+                "difficulty": "easy",
+                "location": "Main Gate",
+                "reward": "5 gold coins",
+                "minimumLevel": 1,
+                "guildId": null
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Quest created successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "message",
+                    "id"
+                  ],
+                  "properties": {
+                    "message": {
+                      "type": "string"
+                    },
+                    "id": {
+                      "type": "string",
+                      "pattern": "^[a-fA-F0-9]{24}$",
+                      "example": "6acd46de25042f01b90c3644"
+                    }
+                  }
+                },
+                "example": {
+                  "message": "Quest created successfully!",
+                  "id": "6acd46de25042f01b90c3644"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation failed. Correct the field identified in the message.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "message"
+                  ],
+                  "properties": {
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "example": {
+                  "message": "difficulty must be easy, medium, or hard."
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unable to create quest.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "message"
+                  ],
+                  "properties": {
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "example": {
+                  "message": "Unable to create quest."
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/quests/{id}": {
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "description": "MongoDB quest ID. Copy an _id from GET /quests.",
+          "schema": {
+            "type": "string",
+            "pattern": "^[a-fA-F0-9]{24}$",
+            "example": "6acd46de25042f01b90c3644"
+          }
+        }
+      ],
+      "get": {
+        "tags": [
+          "Quests"
+        ],
+        "summary": "Get a quest by ID — planned",
+        "description": "Design planned for a later lesson. This route is not implemented yet. Trying it now returns 404 and does not modify the database. Intended behavior: return one quest, or 404 if it does not exist.",
+        "responses": {
+          "404": {
+            "description": "Current behavior: route has not been implemented."
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Quests"
+        ],
+        "summary": "Update a quest — planned",
+        "description": "Design planned for a later lesson. This route is not implemented yet. Trying it now returns 404 and does not modify the database. Intended behavior: replace the editable fields of an existing quest.",
+        "requestBody": {
+          "required": true,
+          "description": "Provide all six required fields. Omit guildId or use null until a guild is assigned.",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/QuestInput"
+              },
+              "example": {
+                "title": "A Message for the Gatekeeper",
+                "description": "Deliver a sealed message to the kingdom gatekeeper.",
+                "difficulty": "easy",
+                "location": "Main Gate",
+                "reward": "5 gold coins",
+                "minimumLevel": 1,
+                "guildId": null
+              }
+            }
+          }
+        },
+        "responses": {
+          "404": {
+            "description": "Current behavior: route has not been implemented."
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Quests"
+        ],
+        "summary": "Delete a quest — planned",
+        "description": "Design planned for a later lesson. This route is not implemented yet. Trying it now returns 404 and does not modify the database. Intended behavior: remove the quest matching the supplied ID.",
+        "responses": {
+          "404": {
+            "description": "Current behavior: route has not been implemented."
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "QuestInput": {
+        "type": "object",
+        "required": [
+          "title",
+          "description",
+          "difficulty",
+          "location",
+          "reward",
+          "minimumLevel"
+        ],
+        "properties": {
+          "title": {
+            "type": "string",
+            "pattern": "\\S",
+            "description": "Quest title. Cannot be blank."
+          },
+          "description": {
+            "type": "string",
+            "pattern": "\\S",
+            "description": "Instructions for completing the quest."
+          },
+          "difficulty": {
+            "type": "string",
+            "enum": [
+              "easy",
+              "medium",
+              "hard"
+            ],
+            "description": "Difficulty is trimmed and converted to lowercase."
+          },
+          "location": {
+            "type": "string",
+            "pattern": "\\S",
+            "description": "Where the quest takes place."
+          },
+          "reward": {
+            "type": "string",
+            "pattern": "\\S",
+            "description": "Reward for completing the quest."
+          },
+          "minimumLevel": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 9007199254740991,
+            "description": "Minimum player level."
+          },
+          "guildId": {
+            "type": "string",
+            "nullable": true,
+            "pattern": "^[a-fA-F0-9]{24}$",
+            "description": "Existing guild ID, or null for an unassigned quest."
+          }
+        }
+      },
+      "Quest": {
+        "type": "object",
+        "required": [
+          "_id",
+          "title",
+          "description",
+          "difficulty",
+          "location",
+          "reward",
+          "minimumLevel",
+          "guildId"
+        ],
+        "properties": {
+          "_id": {
+            "type": "string",
+            "pattern": "^[a-fA-F0-9]{24}$",
+            "example": "6acd46de25042f01b90c3644"
+          },
+          "title": {
+            "type": "string",
+            "pattern": "\\S",
+            "description": "Quest title. Cannot be blank."
+          },
+          "description": {
+            "type": "string",
+            "pattern": "\\S",
+            "description": "Instructions for completing the quest."
+          },
+          "difficulty": {
+            "type": "string",
+            "enum": [
+              "easy",
+              "medium",
+              "hard"
+            ],
+            "description": "Difficulty is trimmed and converted to lowercase."
+          },
+          "location": {
+            "type": "string",
+            "pattern": "\\S",
+            "description": "Where the quest takes place."
+          },
+          "reward": {
+            "type": "string",
+            "pattern": "\\S",
+            "description": "Reward for completing the quest."
+          },
+          "minimumLevel": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 9007199254740991,
+            "description": "Minimum player level."
+          },
+          "guildId": {
+            "type": "string",
+            "nullable": true,
+            "pattern": "^[a-fA-F0-9]{24}$",
+            "description": "Existing guild ID, or null for an unassigned quest."
+          }
+        }
+      }
+    }
+  }
+}

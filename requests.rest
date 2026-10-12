@@ -1,0 +1,18 @@
+@localUrl = http://localhost:8080
+
+### Get all quests
+GET {{localUrl}}/quests
+
+### Create a quest
+POST {{localUrl}}/quests
+Content-Type: application/json
+
+{
+  "title": "The Missing Blacksmith Hammer",
+  "description": "Find the blacksmith's missing hammer and return it to the forge.",
+  "difficulty": "easy",
+  "location": "Embercrest Forge",
+  "reward": "10 gold coins",
+  "minimumLevel": 1,
+  "guildId": null
+}
