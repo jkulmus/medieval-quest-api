@@ -26,7 +26,7 @@ const questProperties = {
   description: {
     type: 'string',
     pattern: '\\S',
-    description: 'Instructions for completing the quest.'
+    description: 'Instructions for completing the quest. Cannot be blank.'
   },
   difficulty: {
     type: 'string',
@@ -36,24 +36,26 @@ const questProperties = {
   location: {
     type: 'string',
     pattern: '\\S',
-    description: 'Where the quest takes place.'
+    description: 'Where the quest takes place. Cannot be blank.'
   },
   reward: {
     type: 'string',
     pattern: '\\S',
-    description: 'Reward for completing the quest.'
+    description: 'Reward for completing the quest. Cannot be blank.'
   },
   minimumLevel: {
     type: 'integer',
     minimum: 1,
     maximum: Number.MAX_SAFE_INTEGER,
-    description: 'Minimum player level.'
+    description: 'Minimum player level. Must be a whole number.'
   },
   guildId: {
     type: 'string',
     nullable: true,
     pattern: '^[a-fA-F0-9]{24}$',
-    description: 'Existing guild ID, or null for an unassigned quest.'
+    description:
+      'Existing guild ID, or null for an unassigned quest. ' +
+      'Omitting this field also makes the quest unassigned.'
   }
 };
 
@@ -66,7 +68,15 @@ const requiredFields = [
   'minimumLevel'
 ];
 
-// Build a documented JSON response.
+const errorSchema = {
+  type: 'object',
+  required: ['message'],
+  properties: {
+    message: { type: 'string' }
+  }
+};
+
+// Build a documented JSON response
 function jsonResponse(description, schema, example) {
   return {
     description,
@@ -79,18 +89,37 @@ function jsonResponse(description, schema, example) {
   };
 }
 
-const errorSchema = {
-  type: 'object',
-  required: ['message'],
-  properties: {
-    message: { type: 'string' }
-  }
-};
+// Build a documented error response
+function errorResponse(description, message) {
+  return jsonResponse(description, errorSchema, { message });
+}
+
+const invalidIdResponse = errorResponse(
+  'The quest ID is not a valid 24-character hexadecimal MongoDB ID.',
+  'Please provide a valid quest ID'
+);
+
+const notFoundResponse = errorResponse(
+  'The ID is valid, but no quest has that ID.',
+  'Quest not found'
+);
+
+const validationResponse = errorResponse(
+  'Invalid JSON or quest data. Check the response message for details.',
+  'minimumLevel must be a whole number of at least 1'
+);
+
+const tooLargeResponse = errorResponse(
+  'The JSON request exceeds the server body-size limit.',
+  'Request body is too large'
+);
 
 const questBody = {
   required: true,
   description:
-    'Provide all six required fields. Omit guildId or use null until a guild is assigned.',
+    'Provide all six required fields. Additional fields are ignored. ' +
+    'Omit guildId or use null for an unassigned quest. ' +
+    'On PUT, omitting guildId clears any previous guild assignment.',
   content: {
     'application/json': {
       schema: { $ref: '#/components/schemas/QuestInput' },
@@ -99,25 +128,15 @@ const questBody = {
   }
 };
 
-const plannedDescription =
-  'Design planned for a later lesson. This route is not implemented yet. ' +
-  'Trying it now returns 404 and does not modify the database.';
-
-const plannedResponses = {
-  404: {
-    description: 'Current behavior: route has not been implemented.'
-  }
-};
-
 const doc = {
   openapi: '3.0.0',
   info: {
     title: 'Medieval Quest API',
-    version: '1.0.0',
+    version: '1.1.0',
     description:
-      'Manage medieval quests and guilds. ' +
-      'Lesson 5 implements GET all quests and POST a quest. ' +
-      'GET by ID, PUT, and DELETE are documented as planned operations.'
+      'Lesson 6: Create, retrieve, update, and delete medieval quests. ' +
+      'Includes input validation and error handling. ' +
+      'Quests may optionally be linked to an existing guild.'
   },
   servers: [
     {
@@ -126,8 +145,14 @@ const doc = {
     }
   ],
   tags: [
-    { name: 'General', description: 'API welcome route.' },
-    { name: 'Quests', description: 'Create and retrieve quests.' }
+    {
+      name: 'General',
+      description: 'API welcome route.'
+    },
+    {
+      name: 'Quests',
+      description: 'Create, retrieve, update, and delete quests.'
+    }
   ],
   paths: {
     '/': {
@@ -143,12 +168,28 @@ const doc = {
         }
       }
     },
+
     '/quests': {
       get: {
         tags: ['Quests'],
         summary: 'Get all quests',
         description:
-          'Returns every quest in MongoDB. An empty collection returns [].',
+          'Returns all quests, optionally filtered by difficulty. ' +
+          'An empty result returns []. ' +
+          'Only the difficulty query parameter is supported.',
+        parameters: [
+          {
+            name: 'difficulty',
+            in: 'query',
+            required: false,
+            description:
+              'Optional filter. Use exactly easy, medium, or hard.',
+            schema: {
+              type: 'string',
+              enum: ['easy', 'medium', 'hard']
+            }
+          }
+        ],
         responses: {
           200: jsonResponse(
             'Quests retrieved successfully.',
@@ -163,19 +204,23 @@ const doc = {
               }
             ]
           ),
-          500: jsonResponse(
+          400: errorResponse(
+            'Invalid difficulty or an unsupported query parameter.',
+            'difficulty must be easy, medium, or hard'
+          ),
+          500: errorResponse(
             'Unable to retrieve quests.',
-            errorSchema,
-            { message: 'Unable to retrieve quests.' }
+            'Unable to retrieve quests'
           )
         }
       },
+
       post: {
         tags: ['Quests'],
         summary: 'Create a quest',
         description:
-          'Validates the submitted fields, saves a quest in MongoDB, ' +
-          'and returns its new ID. Additional fields are ignored.',
+          'Validates the quest fields and any supplied guild ID, ' +
+          'saves the quest in MongoDB, and returns its new ID.',
         requestBody: questBody,
         responses: {
           201: jsonResponse(
@@ -193,53 +238,93 @@ const doc = {
               id: idSchema.example
             }
           ),
-          400: jsonResponse(
-            'Validation failed. Correct the field identified in the message.',
-            errorSchema,
-            { message: 'difficulty must be easy, medium, or hard.' }
-          ),
-          500: jsonResponse(
+          400: validationResponse,
+          413: tooLargeResponse,
+          500: errorResponse(
             'Unable to create quest.',
-            errorSchema,
-            { message: 'Unable to create quest.' }
+            'Unable to create quest'
           )
         }
       }
     },
+
     '/quests/{id}': {
       parameters: [
         {
           name: 'id',
           in: 'path',
           required: true,
-          description: 'MongoDB quest ID. Copy an _id from GET /quests.',
+          description:
+            'MongoDB quest ID. Copy an actual _id from GET /quests.',
           schema: idSchema
         }
       ],
+
       get: {
         tags: ['Quests'],
-        summary: 'Get a quest by ID — planned',
-        description:
-          plannedDescription +
-          ' Intended behavior: return one quest, or 404 if it does not exist.',
-        responses: plannedResponses
+        summary: 'Get a quest by ID',
+        description: 'Returns the quest matching the supplied ID.',
+        responses: {
+          200: jsonResponse(
+            'Quest retrieved successfully.',
+            { $ref: '#/components/schemas/Quest' },
+            {
+              _id: idSchema.example,
+              ...questExample
+            }
+          ),
+          400: invalidIdResponse,
+          404: notFoundResponse,
+          500: errorResponse(
+            'Unable to retrieve quest.',
+            'Unable to retrieve quest'
+          )
+        }
       },
+
       put: {
         tags: ['Quests'],
-        summary: 'Update a quest — planned',
+        summary: 'Update a quest',
         description:
-          plannedDescription +
-          ' Intended behavior: replace the editable fields of an existing quest.',
+          'Updates all seven editable fields of an existing quest. ' +
+          'All six required fields must be supplied. ' +
+          'Returns 204 with no response body on success, ' +
+          'including when the submitted values are unchanged.',
         requestBody: questBody,
-        responses: plannedResponses
+        responses: {
+          204: {
+            description: 'Quest updated successfully. No response body.'
+          },
+          400: errorResponse(
+            'Invalid quest ID, malformed JSON, or invalid quest fields.',
+            'minimumLevel must be a whole number of at least 1'
+          ),
+          404: notFoundResponse,
+          413: tooLargeResponse,
+          500: errorResponse(
+            'Unable to update quest.',
+            'Unable to update quest'
+          )
+        }
       },
+
       delete: {
         tags: ['Quests'],
-        summary: 'Delete a quest — planned',
-        description:
-          plannedDescription +
-          ' Intended behavior: remove the quest matching the supplied ID.',
-        responses: plannedResponses
+        summary: 'Delete a quest',
+        description: 'Permanently removes the quest matching the supplied ID.',
+        responses: {
+          200: jsonResponse(
+            'Quest deleted successfully.',
+            errorSchema,
+            { message: 'Quest deleted successfully!' }
+          ),
+          400: invalidIdResponse,
+          404: notFoundResponse,
+          500: errorResponse(
+            'Unable to delete quest.',
+            'Unable to delete quest'
+          )
+        }
       }
     }
   },
