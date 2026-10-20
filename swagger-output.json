@@ -19,6 +19,10 @@
     {
       "name": "Quests",
       "description": "Create, retrieve, update, and delete quests."
+    },
+    {
+      "name": "Guilds",
+      "description": "Create, retrieve, update, and delete guilds."
     }
   ],
   "paths": {
@@ -582,6 +586,543 @@
           }
         }
       }
+    },
+    "/guilds": {
+      "get": {
+        "tags": [
+          "Guilds"
+        ],
+        "summary": "Get all guilds",
+        "description": "Returns all guilds, or filters by an exact, case-sensitive name. An empty result returns []. Only the name query parameter is supported.",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "query",
+            "required": false,
+            "description": "Optional exact guild name. Cannot be blank.",
+            "schema": {
+              "type": "string",
+              "pattern": "\\S"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Guilds retrieved successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Guild"
+                  }
+                },
+                "example": [
+                  {
+                    "_id": "6acd46de25042f01b90c3644",
+                    "name": "The Silver Lanterns",
+                    "description": "Adventurers who guide travelers and protect village roads.",
+                    "headquarters": "Lantern Hall",
+                    "leader": "Captain Elara",
+                    "minimumLevel": 1
+                  }
+                ]
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid name or unsupported query parameter.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "message"
+                  ],
+                  "properties": {
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "example": {
+                  "message": "name must be a nonempty string"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unable to retrieve guilds.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "message"
+                  ],
+                  "properties": {
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "example": {
+                  "message": "Unable to retrieve guilds"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Guilds"
+        ],
+        "summary": "Create a guild",
+        "requestBody": {
+          "required": true,
+          "description": "Supply all five fields for both POST and PUT. Text fields cannot be blank. Additional fields are ignored.",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GuildInput"
+              },
+              "example": {
+                "name": "The Silver Lanterns",
+                "description": "Adventurers who guide travelers and protect village roads.",
+                "headquarters": "Lantern Hall",
+                "leader": "Captain Elara",
+                "minimumLevel": 1
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Guild created successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "message",
+                    "id"
+                  ],
+                  "properties": {
+                    "message": {
+                      "type": "string"
+                    },
+                    "id": {
+                      "type": "string",
+                      "pattern": "^[a-fA-F0-9]{24}$",
+                      "example": "6acd46de25042f01b90c3644"
+                    }
+                  }
+                },
+                "example": {
+                  "message": "Guild created successfully!",
+                  "id": "6acd46de25042f01b90c3644"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Malformed JSON or invalid guild fields.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "message"
+                  ],
+                  "properties": {
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "example": {
+                  "message": "name must be a nonempty string"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "The JSON request exceeds the server body-size limit.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "message"
+                  ],
+                  "properties": {
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "example": {
+                  "message": "Request body is too large"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unable to create guild.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "message"
+                  ],
+                  "properties": {
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "example": {
+                  "message": "Unable to create guild"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/guilds/{id}": {
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "description": "Copy an actual guild _id from GET /guilds.",
+          "schema": {
+            "type": "string",
+            "pattern": "^[a-fA-F0-9]{24}$",
+            "example": "6acd46de25042f01b90c3644"
+          }
+        }
+      ],
+      "get": {
+        "tags": [
+          "Guilds"
+        ],
+        "summary": "Get a guild by ID",
+        "responses": {
+          "200": {
+            "description": "Guild retrieved successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Guild"
+                },
+                "example": {
+                  "_id": "6acd46de25042f01b90c3644",
+                  "name": "The Silver Lanterns",
+                  "description": "Adventurers who guide travelers and protect village roads.",
+                  "headquarters": "Lantern Hall",
+                  "leader": "Captain Elara",
+                  "minimumLevel": 1
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The guild ID must contain 24 hexadecimal characters.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "message"
+                  ],
+                  "properties": {
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "example": {
+                  "message": "Please provide a valid guild ID"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No guild exists with the supplied ID.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "message"
+                  ],
+                  "properties": {
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "example": {
+                  "message": "Guild not found"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unable to retrieve guild.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "message"
+                  ],
+                  "properties": {
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "example": {
+                  "message": "Unable to retrieve guild"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Guilds"
+        ],
+        "summary": "Update a guild",
+        "description": "Updates all five editable fields. All five fields are required. Unchanged values also return 204.",
+        "requestBody": {
+          "required": true,
+          "description": "Supply all five fields for both POST and PUT. Text fields cannot be blank. Additional fields are ignored.",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GuildInput"
+              },
+              "example": {
+                "name": "The Silver Lanterns",
+                "description": "Adventurers who guide travelers and protect village roads.",
+                "headquarters": "Lantern Hall",
+                "leader": "Captain Elara",
+                "minimumLevel": 1
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Guild updated successfully. No response body."
+          },
+          "400": {
+            "description": "Invalid guild ID, malformed JSON, or invalid guild fields.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "message"
+                  ],
+                  "properties": {
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "example": {
+                  "message": "minimumLevel must be a whole number of at least 1"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No guild exists with the supplied ID.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "message"
+                  ],
+                  "properties": {
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "example": {
+                  "message": "Guild not found"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "The JSON request exceeds the server body-size limit.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "message"
+                  ],
+                  "properties": {
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "example": {
+                  "message": "Request body is too large"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unable to update guild.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "message"
+                  ],
+                  "properties": {
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "example": {
+                  "message": "Unable to update guild"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Guilds"
+        ],
+        "summary": "Delete a guild",
+        "description": "Deletes a guild after checking for assigned quests. Reassign or unassign any linked quests first.",
+        "responses": {
+          "200": {
+            "description": "Guild deleted successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "message"
+                  ],
+                  "properties": {
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "example": {
+                  "message": "Guild deleted successfully!"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The guild ID must contain 24 hexadecimal characters.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "message"
+                  ],
+                  "properties": {
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "example": {
+                  "message": "Please provide a valid guild ID"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No guild exists with the supplied ID.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "message"
+                  ],
+                  "properties": {
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "example": {
+                  "message": "Guild not found"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "A quest is still assigned to this guild.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "message"
+                  ],
+                  "properties": {
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "example": {
+                  "message": "This guild has assigned quests. Reassign or unassign them before deleting it."
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unable to delete guild.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "message"
+                  ],
+                  "properties": {
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "example": {
+                  "message": "Unable to delete guild"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -698,6 +1239,78 @@
             "nullable": true,
             "pattern": "^[a-fA-F0-9]{24}$",
             "description": "Existing guild ID, or null for an unassigned quest. Omitting this field also makes the quest unassigned."
+          }
+        }
+      },
+      "GuildInput": {
+        "type": "object",
+        "required": [
+          "name",
+          "description",
+          "headquarters",
+          "leader",
+          "minimumLevel"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "pattern": "\\S"
+          },
+          "description": {
+            "type": "string",
+            "pattern": "\\S"
+          },
+          "headquarters": {
+            "type": "string",
+            "pattern": "\\S"
+          },
+          "leader": {
+            "type": "string",
+            "pattern": "\\S"
+          },
+          "minimumLevel": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 9007199254740991
+          }
+        }
+      },
+      "Guild": {
+        "type": "object",
+        "required": [
+          "_id",
+          "name",
+          "description",
+          "headquarters",
+          "leader",
+          "minimumLevel"
+        ],
+        "properties": {
+          "_id": {
+            "type": "string",
+            "pattern": "^[a-fA-F0-9]{24}$",
+            "example": "6acd46de25042f01b90c3644"
+          },
+          "name": {
+            "type": "string",
+            "pattern": "\\S"
+          },
+          "description": {
+            "type": "string",
+            "pattern": "\\S"
+          },
+          "headquarters": {
+            "type": "string",
+            "pattern": "\\S"
+          },
+          "leader": {
+            "type": "string",
+            "pattern": "\\S"
+          },
+          "minimumLevel": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 9007199254740991
           }
         }
       }

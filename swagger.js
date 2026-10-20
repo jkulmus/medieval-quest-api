@@ -347,6 +347,241 @@ const doc = {
   }
 };
 
+// Guild documentation
+const guildExample = {
+  name: 'The Silver Lanterns',
+  description: 'Adventurers who guide travelers and protect village roads.',
+  headquarters: 'Lantern Hall',
+  leader: 'Captain Elara',
+  minimumLevel: 1
+};
+
+const guildRequiredFields = [
+  'name',
+  'description',
+  'headquarters',
+  'leader',
+  'minimumLevel'
+];
+
+const guildProperties = {
+  name: {
+    type: 'string',
+    pattern: '\\S'
+  },
+  description: {
+    type: 'string',
+    pattern: '\\S'
+  },
+  headquarters: {
+    type: 'string',
+    pattern: '\\S'
+  },
+  leader: {
+    type: 'string',
+    pattern: '\\S'
+  },
+  minimumLevel: {
+    type: 'integer',
+    minimum: 1,
+    maximum: Number.MAX_SAFE_INTEGER
+  }
+};
+
+doc.tags.push({
+  name: 'Guilds',
+  description: 'Create, retrieve, update, and delete guilds.'
+});
+
+doc.components.schemas.GuildInput = {
+  type: 'object',
+  required: guildRequiredFields,
+  properties: guildProperties
+};
+
+doc.components.schemas.Guild = {
+  type: 'object',
+  required: ['_id', ...guildRequiredFields],
+  properties: {
+    _id: idSchema,
+    ...guildProperties
+  }
+};
+
+const guildBody = {
+  required: true,
+  description:
+    'Supply all five fields for both POST and PUT. ' +
+    'Text fields cannot be blank. Additional fields are ignored.',
+  content: {
+    'application/json': {
+      schema: { $ref: '#/components/schemas/GuildInput' },
+      example: guildExample
+    }
+  }
+};
+
+const guildInvalidIdResponse = errorResponse(
+  'The guild ID must contain 24 hexadecimal characters.',
+  'Please provide a valid guild ID'
+);
+
+const guildNotFoundResponse = errorResponse(
+  'No guild exists with the supplied ID.',
+  'Guild not found'
+);
+
+doc.paths['/guilds'] = {
+  get: {
+    tags: ['Guilds'],
+    summary: 'Get all guilds',
+    description:
+      'Returns all guilds, or filters by an exact, case-sensitive name. ' +
+      'An empty result returns []. Only the name query parameter is supported.',
+    parameters: [
+      {
+        name: 'name',
+        in: 'query',
+        required: false,
+        description: 'Optional exact guild name. Cannot be blank.',
+        schema: {
+          type: 'string',
+          pattern: '\\S'
+        }
+      }
+    ],
+    responses: {
+      200: jsonResponse(
+        'Guilds retrieved successfully.',
+        {
+          type: 'array',
+          items: { $ref: '#/components/schemas/Guild' }
+        },
+        [{ _id: idSchema.example, ...guildExample }]
+      ),
+      400: errorResponse(
+        'Invalid name or unsupported query parameter.',
+        'name must be a nonempty string'
+      ),
+      500: errorResponse(
+        'Unable to retrieve guilds.',
+        'Unable to retrieve guilds'
+      )
+    }
+  },
+
+  post: {
+    tags: ['Guilds'],
+    summary: 'Create a guild',
+    requestBody: guildBody,
+    responses: {
+      201: jsonResponse(
+        'Guild created successfully.',
+        {
+          type: 'object',
+          required: ['message', 'id'],
+          properties: {
+            message: { type: 'string' },
+            id: idSchema
+          }
+        },
+        {
+          message: 'Guild created successfully!',
+          id: idSchema.example
+        }
+      ),
+      400: errorResponse(
+        'Malformed JSON or invalid guild fields.',
+        'name must be a nonempty string'
+      ),
+      413: tooLargeResponse,
+      500: errorResponse(
+        'Unable to create guild.',
+        'Unable to create guild'
+      )
+    }
+  }
+};
+
+doc.paths['/guilds/{id}'] = {
+  parameters: [
+    {
+      name: 'id',
+      in: 'path',
+      required: true,
+      description: 'Copy an actual guild _id from GET /guilds.',
+      schema: idSchema
+    }
+  ],
+
+  get: {
+    tags: ['Guilds'],
+    summary: 'Get a guild by ID',
+    responses: {
+      200: jsonResponse(
+        'Guild retrieved successfully.',
+        { $ref: '#/components/schemas/Guild' },
+        { _id: idSchema.example, ...guildExample }
+      ),
+      400: guildInvalidIdResponse,
+      404: guildNotFoundResponse,
+      500: errorResponse(
+        'Unable to retrieve guild.',
+        'Unable to retrieve guild'
+      )
+    }
+  },
+
+  put: {
+    tags: ['Guilds'],
+    summary: 'Update a guild',
+    description:
+      'Updates all five editable fields. All five fields are required. ' +
+      'Unchanged values also return 204.',
+    requestBody: guildBody,
+    responses: {
+      204: {
+        description: 'Guild updated successfully. No response body.'
+      },
+      400: errorResponse(
+        'Invalid guild ID, malformed JSON, or invalid guild fields.',
+        'minimumLevel must be a whole number of at least 1'
+      ),
+      404: guildNotFoundResponse,
+      413: tooLargeResponse,
+      500: errorResponse(
+        'Unable to update guild.',
+        'Unable to update guild'
+      )
+    }
+  },
+
+  delete: {
+    tags: ['Guilds'],
+    summary: 'Delete a guild',
+    description:
+      'Deletes a guild after checking for assigned quests. ' +
+      'Reassign or unassign any linked quests first.',
+    responses: {
+      200: jsonResponse(
+        'Guild deleted successfully.',
+        errorSchema,
+        { message: 'Guild deleted successfully!' }
+      ),
+      400: guildInvalidIdResponse,
+      404: guildNotFoundResponse,
+      409: errorResponse(
+        'A quest is still assigned to this guild.',
+        'This guild has assigned quests. Reassign or unassign them before deleting it.'
+      ),
+      500: errorResponse(
+        'Unable to delete guild.',
+        'Unable to delete guild'
+      )
+    }
+  }
+};
+
 fs.writeFileSync(
   path.join(__dirname, 'swagger-output.json'),
   JSON.stringify(doc, null, 2)
