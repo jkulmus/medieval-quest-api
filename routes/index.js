@@ -6,6 +6,7 @@ router.get('/', (req, res) => {
     });
 });
 
+router.use('/auth', require('./auth'));
 router.use('/quests', require('./quests'));
 router.use('/guilds', require('./guilds'));
 router.use('/api-docs', require('./swagger'));
