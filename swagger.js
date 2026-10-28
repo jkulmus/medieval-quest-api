@@ -582,6 +582,209 @@ doc.paths['/guilds/{id}'] = {
   }
 };
 
+// Lesson 7: Google login and session-based access
+doc.info.version = '1.2.0';
+doc.info.description =
+  'Create, retrieve, update, and delete medieval quests and guilds. ' +
+  'Includes validation, error handling, Google login, and MongoDB sessions. ' +
+  'Quest and guild GET requests are public. POST, PUT, and DELETE require login. ' +
+  'Any signed-in user can change quests and guilds; there are no admin or ownership restrictions.\n\n' +
+  '**To sign in:** open [Google login](/auth/google) in this browser, ' +
+  'complete sign-in, then return to /api-docs/. ' +
+  'Do not use Try it out for Google login or its callback. ' +
+  'The browser sends the existing session cookie automatically on same-origin requests. ' +
+  'Do not enter a cookie or Google client secret into Authorize.\n\n' +
+  'Use GET /auth/me to check your login and POST /auth/logout to sign out. ' +
+  'Swagger adds the required X-Requested-With header to same-origin write requests.';
+
+doc.tags.unshift({
+  name: 'Authentication',
+  description: 'Google sign-in, current user, and logout.'
+});
+
+doc.components.securitySchemes = {
+  cookieAuth: {
+    type: 'apiKey',
+    in: 'cookie',
+    name: 'medieval.sid',
+    description:
+      'Session created through /auth/google. Sign in using the browser link. ' +
+      'The browser manages this HttpOnly cookie; do not paste it into Authorize.'
+  }
+};
+
+const loginRequiredResponse = errorResponse(
+  'No authenticated session. Sign in with Google first.',
+  'You must log in before making changes'
+);
+
+const forbiddenResponse = errorResponse(
+  'Missing or incorrect X-Requested-With header, or a disallowed Origin. ' +
+  'An origin rejection returns: Requests from this origin are not allowed',
+  'X-Requested-With header must be XMLHttpRequest'
+);
+
+const requestHeaderParameter = {
+  name: 'X-Requested-With',
+  in: 'header',
+  required: true,
+  description: 'Required for writes. This Swagger page adds it automatically.',
+  schema: {
+    type: 'string',
+    enum: ['XMLHttpRequest'],
+    default: 'XMLHttpRequest'
+  }
+};
+
+// Apply the same documentation to all six protected CRUD operations
+for (const route of ['/quests', '/quests/{id}', '/guilds', '/guilds/{id}']) {
+  for (const method of ['post', 'put', 'delete']) {
+    const operation = doc.paths[route][method];
+    if (!operation) continue;
+
+    operation.security = [{ cookieAuth: [] }];
+    operation.parameters = [
+      ...(operation.parameters || []),
+      requestHeaderParameter
+    ];
+    operation.description = [
+      operation.description,
+      'Requires Google login and X-Requested-With: XMLHttpRequest. ' +
+      'If an Origin header is present, it must match this API origin.'
+    ].filter(Boolean).join(' ');
+    operation.responses[401] = loginRequiredResponse;
+    operation.responses[403] = forbiddenResponse;
+  }
+}
+
+doc.paths['/auth/google'] = {
+  get: {
+    tags: ['Authentication'],
+    summary: 'Start Google sign-in',
+    description:
+      'Open [Google login](/auth/google) as a browser page. ' +
+      'Do not use Try it out: this route redirects the browser to Google.',
+    security: [],
+    responses: {
+      302: { description: 'Redirects to Google for sign-in.' },
+      500: errorResponse(
+        'Unable to start sign-in.',
+        'An unexpected server error occurred'
+      )
+    }
+  }
+};
+
+doc.paths['/auth/google/callback'] = {
+  get: {
+    tags: ['Authentication'],
+    summary: 'Complete Google sign-in',
+    description:
+      'Google calls this route after sign-in with temporary code and state values. ' +
+      'Do not call it manually or use Try it out. ' +
+      'Passport verifies the response and establishes the login session.',
+    security: [],
+    responses: {
+      302: {
+        description:
+          'Redirects to /auth/me on success, or /auth/failed on authentication failure.'
+      },
+      500: errorResponse(
+        'An error occurred while completing sign-in.',
+        'An unexpected server error occurred'
+      )
+    }
+  }
+};
+
+doc.paths['/auth/failed'] = {
+  get: {
+    tags: ['Authentication'],
+    summary: 'Show a sign-in failure message',
+    security: [],
+    responses: {
+      401: errorResponse(
+        'Google sign-in did not succeed.',
+        'Google sign-in was unsuccessful. Please try again.'
+      )
+    }
+  }
+};
+
+doc.components.schemas.CurrentUser = {
+  type: 'object',
+  required: ['id', 'displayName', 'email'],
+  properties: {
+    id: idSchema,
+    displayName: { type: 'string' },
+    email: { type: 'string', nullable: true }
+  }
+};
+
+doc.paths['/auth/me'] = {
+  get: {
+    tags: ['Authentication'],
+    summary: 'Get the signed-in user',
+    description: 'Returns account details from the current login session.',
+    security: [{ cookieAuth: [] }],
+    responses: {
+      200: jsonResponse(
+        'Current user retrieved successfully.',
+        {
+          type: 'object',
+          required: ['message', 'user'],
+          properties: {
+            message: { type: 'string' },
+            user: { $ref: '#/components/schemas/CurrentUser' }
+          }
+        },
+        {
+          message: 'You are logged in!',
+          user: {
+            id: idSchema.example,
+            displayName: 'Example Adventurer',
+            email: 'adventurer@example.com'
+          }
+        }
+      ),
+      401: errorResponse(
+        'No authenticated session.',
+        'You must log in to view your account'
+      ),
+      500: errorResponse(
+        'Unable to retrieve the current user.',
+        'An unexpected server error occurred'
+      )
+    }
+  }
+};
+
+doc.paths['/auth/logout'] = {
+  post: {
+    tags: ['Authentication'],
+    summary: 'Log out',
+    description:
+      'Logs out through Passport, destroys the server session, and clears medieval.sid. ' +
+      'Requires login and X-Requested-With: XMLHttpRequest. ' +
+      'If an Origin header is present, it must match this API origin. No request body is needed.',
+    security: [{ cookieAuth: [] }],
+    parameters: [requestHeaderParameter],
+    responses: {
+      200: jsonResponse(
+        'Logged out successfully. The session cookie is cleared.',
+        errorSchema,
+        { message: 'You have been logged out successfully' }
+      ),
+      401: loginRequiredResponse,
+      403: forbiddenResponse,
+      500: errorResponse(
+        'Unable to complete logout.',
+        'An unexpected server error occurred'
+      )
+    }
+  }
+};
+
 fs.writeFileSync(
   path.join(__dirname, 'swagger-output.json'),
   JSON.stringify(doc, null, 2)

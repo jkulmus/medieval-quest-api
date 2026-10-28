@@ -1,5 +1,6 @@
 const router = require('express').Router();
 const passport = require('passport');
+const { requireWriteAccess } = require('../middleware/auth');
 
 // Prevent browsers from caching authentication responses
 router.use((req, res, next) => {
@@ -48,6 +49,31 @@ router.get('/me', (req, res) => {
             displayName: req.user.displayName,
             email: req.user.email
         }
+    });
+});
+
+router.post('/logout', requireWriteAccess, (req, res, next) => {
+    req.logout((error) => {
+        if (error) {
+            return next(error);
+        }
+
+        req.session.destroy((error) => {
+            if (error) {
+                return next(error);
+            }
+
+            res.clearCookie('medieval.sid', {
+                path: '/',
+                httpOnly: true,
+                secure: process.env.NODE_ENV === 'production',
+                sameSite: 'lax'
+            });
+
+            return res.status(200).json({
+                message: 'You have been logged out successfully'
+            });
+        });
     });
 });
 

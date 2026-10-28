@@ -2,8 +2,8 @@
   "openapi": "3.0.0",
   "info": {
     "title": "Medieval Quest API",
-    "version": "1.1.0",
-    "description": "Lesson 6: Create, retrieve, update, and delete medieval quests. Includes input validation and error handling. Quests may optionally be linked to an existing guild."
+    "version": "1.2.0",
+    "description": "Create, retrieve, update, and delete medieval quests and guilds. Includes validation, error handling, Google login, and MongoDB sessions. Quest and guild GET requests are public. POST, PUT, and DELETE require login. Any signed-in user can change quests and guilds; there are no admin or ownership restrictions.\n\n**To sign in:** open [Google login](/auth/google) in this browser, complete sign-in, then return to /api-docs/. Do not use Try it out for Google login or its callback. The browser sends the existing session cookie automatically on same-origin requests. Do not enter a cookie or Google client secret into Authorize.\n\nUse GET /auth/me to check your login and POST /auth/logout to sign out. Swagger adds the required X-Requested-With header to same-origin write requests."
   },
   "servers": [
     {
@@ -12,6 +12,10 @@
     }
   ],
   "tags": [
+    {
+      "name": "Authentication",
+      "description": "Google sign-in, current user, and logout."
+    },
     {
       "name": "General",
       "description": "API welcome route."
@@ -155,7 +159,7 @@
           "Quests"
         ],
         "summary": "Create a quest",
-        "description": "Validates the quest fields and any supplied guild ID, saves the quest in MongoDB, and returns its new ID.",
+        "description": "Validates the quest fields and any supplied guild ID, saves the quest in MongoDB, and returns its new ID. Requires Google login and X-Requested-With: XMLHttpRequest. If an Origin header is present, it must match this API origin.",
         "requestBody": {
           "required": true,
           "description": "Provide all six required fields. Additional fields are ignored. Omit guildId or use null for an unassigned quest. On PUT, omitting guildId clears any previous guild assignment.",
@@ -226,6 +230,48 @@
               }
             }
           },
+          "401": {
+            "description": "No authenticated session. Sign in with Google first.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "message"
+                  ],
+                  "properties": {
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "example": {
+                  "message": "You must log in before making changes"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Missing or incorrect X-Requested-With header, or a disallowed Origin. An origin rejection returns: Requests from this origin are not allowed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "message"
+                  ],
+                  "properties": {
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "example": {
+                  "message": "X-Requested-With header must be XMLHttpRequest"
+                }
+              }
+            }
+          },
           "413": {
             "description": "The JSON request exceeds the server body-size limit.",
             "content": {
@@ -268,7 +314,27 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "X-Requested-With",
+            "in": "header",
+            "required": true,
+            "description": "Required for writes. This Swagger page adds it automatically.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "XMLHttpRequest"
+              ],
+              "default": "XMLHttpRequest"
+            }
+          }
+        ]
       }
     },
     "/quests/{id}": {
@@ -382,7 +448,7 @@
           "Quests"
         ],
         "summary": "Update a quest",
-        "description": "Updates all seven editable fields of an existing quest. All six required fields must be supplied. Returns 204 with no response body on success, including when the submitted values are unchanged.",
+        "description": "Updates all seven editable fields of an existing quest. All six required fields must be supplied. Returns 204 with no response body on success, including when the submitted values are unchanged. Requires Google login and X-Requested-With: XMLHttpRequest. If an Origin header is present, it must match this API origin.",
         "requestBody": {
           "required": true,
           "description": "Provide all six required fields. Additional fields are ignored. Omit guildId or use null for an unassigned quest. On PUT, omitting guildId clears any previous guild assignment.",
@@ -424,6 +490,48 @@
                 },
                 "example": {
                   "message": "minimumLevel must be a whole number of at least 1"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No authenticated session. Sign in with Google first.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "message"
+                  ],
+                  "properties": {
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "example": {
+                  "message": "You must log in before making changes"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Missing or incorrect X-Requested-With header, or a disallowed Origin. An origin rejection returns: Requests from this origin are not allowed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "message"
+                  ],
+                  "properties": {
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "example": {
+                  "message": "X-Requested-With header must be XMLHttpRequest"
                 }
               }
             }
@@ -491,14 +599,34 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "X-Requested-With",
+            "in": "header",
+            "required": true,
+            "description": "Required for writes. This Swagger page adds it automatically.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "XMLHttpRequest"
+              ],
+              "default": "XMLHttpRequest"
+            }
+          }
+        ]
       },
       "delete": {
         "tags": [
           "Quests"
         ],
         "summary": "Delete a quest",
-        "description": "Permanently removes the quest matching the supplied ID.",
+        "description": "Permanently removes the quest matching the supplied ID. Requires Google login and X-Requested-With: XMLHttpRequest. If an Origin header is present, it must match this API origin.",
         "responses": {
           "200": {
             "description": "Quest deleted successfully.",
@@ -538,6 +666,48 @@
                 },
                 "example": {
                   "message": "Please provide a valid quest ID"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No authenticated session. Sign in with Google first.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "message"
+                  ],
+                  "properties": {
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "example": {
+                  "message": "You must log in before making changes"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Missing or incorrect X-Requested-With header, or a disallowed Origin. An origin rejection returns: Requests from this origin are not allowed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "message"
+                  ],
+                  "properties": {
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "example": {
+                  "message": "X-Requested-With header must be XMLHttpRequest"
                 }
               }
             }
@@ -584,7 +754,27 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "X-Requested-With",
+            "in": "header",
+            "required": true,
+            "description": "Required for writes. This Swagger page adds it automatically.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "XMLHttpRequest"
+              ],
+              "default": "XMLHttpRequest"
+            }
+          }
+        ]
       }
     },
     "/guilds": {
@@ -747,6 +937,48 @@
               }
             }
           },
+          "401": {
+            "description": "No authenticated session. Sign in with Google first.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "message"
+                  ],
+                  "properties": {
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "example": {
+                  "message": "You must log in before making changes"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Missing or incorrect X-Requested-With header, or a disallowed Origin. An origin rejection returns: Requests from this origin are not allowed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "message"
+                  ],
+                  "properties": {
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "example": {
+                  "message": "X-Requested-With header must be XMLHttpRequest"
+                }
+              }
+            }
+          },
           "413": {
             "description": "The JSON request exceeds the server body-size limit.",
             "content": {
@@ -789,7 +1021,28 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "X-Requested-With",
+            "in": "header",
+            "required": true,
+            "description": "Required for writes. This Swagger page adds it automatically.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "XMLHttpRequest"
+              ],
+              "default": "XMLHttpRequest"
+            }
+          }
+        ],
+        "description": "Requires Google login and X-Requested-With: XMLHttpRequest. If an Origin header is present, it must match this API origin."
       }
     },
     "/guilds/{id}": {
@@ -900,7 +1153,7 @@
           "Guilds"
         ],
         "summary": "Update a guild",
-        "description": "Updates all five editable fields. All five fields are required. Unchanged values also return 204.",
+        "description": "Updates all five editable fields. All five fields are required. Unchanged values also return 204. Requires Google login and X-Requested-With: XMLHttpRequest. If an Origin header is present, it must match this API origin.",
         "requestBody": {
           "required": true,
           "description": "Supply all five fields for both POST and PUT. Text fields cannot be blank. Additional fields are ignored.",
@@ -940,6 +1193,48 @@
                 },
                 "example": {
                   "message": "minimumLevel must be a whole number of at least 1"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No authenticated session. Sign in with Google first.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "message"
+                  ],
+                  "properties": {
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "example": {
+                  "message": "You must log in before making changes"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Missing or incorrect X-Requested-With header, or a disallowed Origin. An origin rejection returns: Requests from this origin are not allowed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "message"
+                  ],
+                  "properties": {
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "example": {
+                  "message": "X-Requested-With header must be XMLHttpRequest"
                 }
               }
             }
@@ -1007,14 +1302,34 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "X-Requested-With",
+            "in": "header",
+            "required": true,
+            "description": "Required for writes. This Swagger page adds it automatically.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "XMLHttpRequest"
+              ],
+              "default": "XMLHttpRequest"
+            }
+          }
+        ]
       },
       "delete": {
         "tags": [
           "Guilds"
         ],
         "summary": "Delete a guild",
-        "description": "Deletes a guild after checking for assigned quests. Reassign or unassign any linked quests first.",
+        "description": "Deletes a guild after checking for assigned quests. Reassign or unassign any linked quests first. Requires Google login and X-Requested-With: XMLHttpRequest. If an Origin header is present, it must match this API origin.",
         "responses": {
           "200": {
             "description": "Guild deleted successfully.",
@@ -1054,6 +1369,48 @@
                 },
                 "example": {
                   "message": "Please provide a valid guild ID"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No authenticated session. Sign in with Google first.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "message"
+                  ],
+                  "properties": {
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "example": {
+                  "message": "You must log in before making changes"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Missing or incorrect X-Requested-With header, or a disallowed Origin. An origin rejection returns: Requests from this origin are not allowed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "message"
+                  ],
+                  "properties": {
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "example": {
+                  "message": "X-Requested-With header must be XMLHttpRequest"
                 }
               }
             }
@@ -1117,6 +1474,333 @@
                 },
                 "example": {
                   "message": "Unable to delete guild"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "X-Requested-With",
+            "in": "header",
+            "required": true,
+            "description": "Required for writes. This Swagger page adds it automatically.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "XMLHttpRequest"
+              ],
+              "default": "XMLHttpRequest"
+            }
+          }
+        ]
+      }
+    },
+    "/auth/google": {
+      "get": {
+        "tags": [
+          "Authentication"
+        ],
+        "summary": "Start Google sign-in",
+        "description": "Open [Google login](/auth/google) as a browser page. Do not use Try it out: this route redirects the browser to Google.",
+        "security": [],
+        "responses": {
+          "302": {
+            "description": "Redirects to Google for sign-in."
+          },
+          "500": {
+            "description": "Unable to start sign-in.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "message"
+                  ],
+                  "properties": {
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "example": {
+                  "message": "An unexpected server error occurred"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/google/callback": {
+      "get": {
+        "tags": [
+          "Authentication"
+        ],
+        "summary": "Complete Google sign-in",
+        "description": "Google calls this route after sign-in with temporary code and state values. Do not call it manually or use Try it out. Passport verifies the response and establishes the login session.",
+        "security": [],
+        "responses": {
+          "302": {
+            "description": "Redirects to /auth/me on success, or /auth/failed on authentication failure."
+          },
+          "500": {
+            "description": "An error occurred while completing sign-in.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "message"
+                  ],
+                  "properties": {
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "example": {
+                  "message": "An unexpected server error occurred"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/failed": {
+      "get": {
+        "tags": [
+          "Authentication"
+        ],
+        "summary": "Show a sign-in failure message",
+        "security": [],
+        "responses": {
+          "401": {
+            "description": "Google sign-in did not succeed.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "message"
+                  ],
+                  "properties": {
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "example": {
+                  "message": "Google sign-in was unsuccessful. Please try again."
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/me": {
+      "get": {
+        "tags": [
+          "Authentication"
+        ],
+        "summary": "Get the signed-in user",
+        "description": "Returns account details from the current login session.",
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Current user retrieved successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "message",
+                    "user"
+                  ],
+                  "properties": {
+                    "message": {
+                      "type": "string"
+                    },
+                    "user": {
+                      "$ref": "#/components/schemas/CurrentUser"
+                    }
+                  }
+                },
+                "example": {
+                  "message": "You are logged in!",
+                  "user": {
+                    "id": "6acd46de25042f01b90c3644",
+                    "displayName": "Example Adventurer",
+                    "email": "adventurer@example.com"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No authenticated session.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "message"
+                  ],
+                  "properties": {
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "example": {
+                  "message": "You must log in to view your account"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unable to retrieve the current user.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "message"
+                  ],
+                  "properties": {
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "example": {
+                  "message": "An unexpected server error occurred"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/logout": {
+      "post": {
+        "tags": [
+          "Authentication"
+        ],
+        "summary": "Log out",
+        "description": "Logs out through Passport, destroys the server session, and clears medieval.sid. Requires login and X-Requested-With: XMLHttpRequest. If an Origin header is present, it must match this API origin. No request body is needed.",
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "X-Requested-With",
+            "in": "header",
+            "required": true,
+            "description": "Required for writes. This Swagger page adds it automatically.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "XMLHttpRequest"
+              ],
+              "default": "XMLHttpRequest"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Logged out successfully. The session cookie is cleared.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "message"
+                  ],
+                  "properties": {
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "example": {
+                  "message": "You have been logged out successfully"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No authenticated session. Sign in with Google first.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "message"
+                  ],
+                  "properties": {
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "example": {
+                  "message": "You must log in before making changes"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Missing or incorrect X-Requested-With header, or a disallowed Origin. An origin rejection returns: Requests from this origin are not allowed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "message"
+                  ],
+                  "properties": {
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "example": {
+                  "message": "X-Requested-With header must be XMLHttpRequest"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unable to complete logout.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "message"
+                  ],
+                  "properties": {
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "example": {
+                  "message": "An unexpected server error occurred"
                 }
               }
             }
@@ -1313,6 +1997,36 @@
             "maximum": 9007199254740991
           }
         }
+      },
+      "CurrentUser": {
+        "type": "object",
+        "required": [
+          "id",
+          "displayName",
+          "email"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-fA-F0-9]{24}$",
+            "example": "6acd46de25042f01b90c3644"
+          },
+          "displayName": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string",
+            "nullable": true
+          }
+        }
+      }
+    },
+    "securitySchemes": {
+      "cookieAuth": {
+        "type": "apiKey",
+        "in": "cookie",
+        "name": "medieval.sid",
+        "description": "Session created through /auth/google. Sign in using the browser link. The browser manages this HttpOnly cookie; do not paste it into Authorize."
       }
     }
   }
