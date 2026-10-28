@@ -1,50 +1,32 @@
 const { ObjectId } = require('mongodb');
 const { getDB } = require('../data/database');
+const {
+    questSchema,
+    validationOptions
+} = require('../validation/schemas');
 
 // Check IDs before using them in MongoDB queries
 function isValidId(id) {
     return typeof id === 'string' && /^[a-fA-F0-9]{24}$/.test(id);
 }
 
-// Shared validation for creating and updating quests
+// Joi validates the fields
+// MongoDB verifies that a referenced guild exists
 async function validateQuest(body, db) {
-    if (!body || typeof body !== 'object' || Array.isArray(body)) {
-        return { error: 'Please provide a JSON object' };
-    }
+    const { error, value } = questSchema.validate(
+        body,
+        validationOptions
+    );
 
-    const textFields = [
-        'title',
-        'description',
-        'difficulty',
-        'location',
-        'reward'
-    ];
-
-    for (const field of textFields) {
-        if (typeof body[field] !== 'string' || !body[field].trim()) {
-            return { error: `${field} must be a nonempty string` };
-        }
-    }
-
-    const difficulty = body.difficulty.trim().toLowerCase();
-
-    if (!['easy', 'medium', 'hard'].includes(difficulty)) {
-        return { error: 'difficulty must be easy, medium, or hard' };
-    }
-
-    if (!Number.isSafeInteger(body.minimumLevel) || body.minimumLevel < 1) {
-        return { error: 'minimumLevel must be a whole number of at least 1' };
+    if (error) {
+        return { error: error.details[0].message };
     }
 
     let guildId = null;
 
     // Quests can be unassigned or linked to an existing guild
-    if (body.guildId !== undefined && body.guildId !== null) {
-        if (!isValidId(body.guildId)) {
-            return { error: 'guildId must be a valid MongoDB ID or null' };
-        }
-
-        guildId = new ObjectId(body.guildId);
+    if (value.guildId !== null) {
+        guildId = new ObjectId(value.guildId);
 
         const guild = await db.collection('guilds').findOne({
             _id: guildId
@@ -57,18 +39,13 @@ async function validateQuest(body, db) {
 
     return {
         quest: {
-            title: body.title.trim(),
-            description: body.description.trim(),
-            difficulty,
-            location: body.location.trim(),
-            reward: body.reward.trim(),
-            minimumLevel: body.minimumLevel,
+            ...value,
             guildId
         }
     };
 }
 
-// GET all quests (filtered by difficulty)
+// GET all quests, optionally filtered by difficulty
 async function getAllQuests(req, res) {
     try {
         const allowedQueryFields = ['difficulty'];

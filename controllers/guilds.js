@@ -1,47 +1,32 @@
 const { ObjectId } = require('mongodb');
 const { getDB } = require('../data/database');
+const {
+    guildSchema,
+    validationOptions
+} = require('../validation/schemas');
 
+// Check IDs before using them in MongoDB queries
 function isValidId(id) {
     return typeof id === 'string' && /^[a-fA-F0-9]{24}$/.test(id);
 }
 
-// Shared validation for POST and PUT
+// Shared Joi validation for POST and PUT
 function validateGuild(body) {
-    if (!body || typeof body !== 'object' || Array.isArray(body)) {
-        return { error: 'Please provide a JSON object' };
+    const { error, value } = guildSchema.validate(
+        body,
+        validationOptions
+    );
+
+    if (error) {
+        return { error: error.details[0].message };
     }
 
-    const textFields = [
-        'name',
-        'description',
-        'headquarters',
-        'leader'
-    ];
-
-    for (const field of textFields) {
-        if (typeof body[field] !== 'string' || !body[field].trim()) {
-            return { error: `${field} must be a nonempty string` };
-        }
-    }
-
-    if (!Number.isSafeInteger(body.minimumLevel) || body.minimumLevel < 1) {
-        return { error: 'minimumLevel must be a whole number of at least 1' };
-    }
-
-    return {
-        guild: {
-            name: body.name.trim(),
-            description: body.description.trim(),
-            headquarters: body.headquarters.trim(),
-            leader: body.leader.trim(),
-            minimumLevel: body.minimumLevel
-        }
-    };
+    return { guild: value };
 }
 
+// GET all guilds, optionally filtered by name
 async function getAllGuilds(req, res) {
     try {
-        // Optional name filter must be a nonempty string
         if (Object.keys(req.query).some((field) => field !== 'name')) {
             return res.status(400).json({
                 message: 'Only the name query parameter is supported'
@@ -78,6 +63,7 @@ async function getAllGuilds(req, res) {
     }
 }
 
+// GET one guild by ID
 async function getGuildById(req, res) {
     try {
         if (!isValidId(req.params.id)) {
@@ -106,6 +92,7 @@ async function getGuildById(req, res) {
     }
 }
 
+// POST a new guild
 async function createGuild(req, res) {
     try {
         const validation = validateGuild(req.body);
@@ -133,6 +120,7 @@ async function createGuild(req, res) {
     }
 }
 
+// PUT updated guild information
 async function updateGuild(req, res) {
     try {
         if (!isValidId(req.params.id)) {
@@ -170,6 +158,7 @@ async function updateGuild(req, res) {
     }
 }
 
+// DELETE a guild only if no quests are assigned to it
 async function deleteGuild(req, res) {
     try {
         if (!isValidId(req.params.id)) {
